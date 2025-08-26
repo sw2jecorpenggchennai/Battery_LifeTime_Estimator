@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battery Calculator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1600px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); color: white; padding: 25px 40px; display: flex; align-items: center; }
+        .logo { width: 50px; height: 50px; background: rgba(255, 255, 255, 0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-right: 20px; }
+        .header h1 { font-size: 2.2em; font-weight: 600; }
+        .main-content { padding: 30px 40px; }
+        .top-section { display: grid; grid-template-columns: 1fr 400px; gap: 30px; margin-bottom: 30px; }
+        .components-table-container { background: white; border-radius: 12px; border: 1px solid #e0e0e0; overflow: hidden; }
+        .table-header { background: #f8f9fa; padding: 20px; border-bottom: 1px solid #e0e0e0; }
+        .table-header h2 { color: #333; font-size: 1.3em; margin-bottom: 10px; }
+        .global-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; font-size: 0.9em; }
+        .input-field { width: 100%; padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.9em; transition: border-color 0.3s ease; background: #fff3cd; }
+        .components-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        .components-table th { background: #f1f3f4; padding: 12px 8px; text-align: left; font-weight: 600; color: #333; border-bottom: 2px solid #e0e0e0; font-size: 0.85em; }
+        .components-table td { padding: 10px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+        .components-table input { width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85em; background: #fff3cd; }
+        .components-table td:nth-child(4) input{ background: lightgray;}
+        .components-table td:nth-child(5) input{ background: lightgray;}
+        .components-table select { width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85em; background: #fff3cd; cursor: pointer; }
+        .output-value { background: #e3f2fd; padding: 6px 8px; border-radius: 4px; font-weight: 500; text-align: center; color: #1565c0; }
+        .output-value.error { background: #ffebee; color: #c62828; }
+        .battery-summary { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); color: white; border-radius: 12px; padding: 25px; display: flex; flex-direction: column; }
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 80px; }
+        .summary-item { background: rgba(255, 255, 255, 0.15); padding: 15px; border-radius: 8px; text-align: center; backdrop-filter: blur(10px); }
+        .summary-item h4 { font-size: 0.85em; opacity: 0.9; margin-bottom: 8px; font-weight: 500; }
+        .summary-item .value { font-size: 1.8em; font-weight: bold; margin-bottom: 3px; }
+        .summary-item .unit { font-size: 0.75em; opacity: 0.8; }
+        .battery-visual { display: flex; align-items: center; justify-content: center; margin-top: 80px; transform: scale(1.75); }
+        .battery-icon { width: 100px; height: 50px; border: 2px solid white; border-radius: 6px; position: relative; margin-right: 15px; }
+        .battery-icon::after { content: ''; position: absolute; right: -6px; top: 15px; width: 4px; height: 20px; background: white; border-radius: 0 2px 2px 0; }
+        .battery-fill { height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); border-radius: 4px; transition: width 0.5s ease; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.75em; }
+        .battery-status { text-align: center; }
+        .battery-status .status { font-size: 1.1em; font-weight: bold; margin-bottom: 3px; }
+        .battery-status .label { font-size: 0.85em; opacity: 0.9; }
+        
+        .status-legend {
+            margin-top: auto;
+            margin-bottom:30px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .status-legend h4 {
+            margin-bottom: 12px;
+            font-size: 0.95em;
+            font-weight: 600;
+            opacity: 0.95;
+        }
+        
+        .legend-items {
+            display: grid;
+            gap: 8px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            font-size: 0.8em;
+            opacity: 0.9;
+        }
+        
+        .legend-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        
+        .legend-indicator.poor {
+            background: linear-gradient(90deg, #f44336, #ff5722);
+        }
+        
+        .legend-indicator.fair {
+            background: linear-gradient(90deg, #ff9800, #ffc107);
+        }
+        
+        .legend-indicator.good {
+            background: linear-gradient(90deg, #2196F3, #03DAC6);
+        }
+        
+        .legend-indicator.excellent {
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+        }
+        
+        .charts-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px; }
+        .chart-container { background: white; border-radius: 12px; border: 1px solid #e0e0e0; padding: 25px; }
+        .chart-wrapper { position: relative; height: 350px; }
+        .error-notification { background: #ffebee; border: 1px solid #f44336; border-radius: 8px; padding: 15px; margin: 20px 0; color: #c62828; display: none; }
+        .error-notification.show { display: block; }
+        
+        @media (max-width: 1200px) {
+            .top-section { grid-template-columns: 1fr; }
+            .charts-section { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🔋</div>
+            <h1>IPG AML-Smart Irrigation System Battery Lifetime Estimation Calculator</h1>
+        </div>
+        <div class="main-content">
+            <div class="error-notification" id="errorNotification">
+                <strong>⚠️ Error:</strong> <span id="errorMessage"></span>
+            </div>
+            <div class="top-section">
+                <div class="components-table-container">
+                    <div class="table-header">
+                        <h2>Component Configuration</h2>
+                        <div class="global-inputs">
+                            <div class="input-group">
+                                <label for="batteryCapacity">Battery Capacity (mAh)</label>
+                                <input type="number" id="batteryCapacity" class="input-field" value="3400" min="1">
+                            </div>
+                        </div>
+                    </div>
+                    <table class="components-table">
+                        <thead>
+                            <tr>
+                                <th>Component</th>
+                                <th>Count</th>
+                                <th>Current (mA)</th>
+                                <th>Activation/day</th>
+                                <th>ActivationDuration (s)</th>
+                                <th>Power Module</th>
+                                <th>Avg Current</th>
+                                <th>Percentage</th>
+                            </tr>
+                        </thead>
+                        <tbody id="componentsTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="battery-summary">
+                    <h2>🔋 Battery Life Summary</h2>
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <h4>Total Current</h4>
+                            <div class="value" id="totalCurrent">0.000</div>
+                            <div class="unit">mA</div>
+                        </div>
+                        <div class="summary-item">
+                            <h4>Battery Life</h4>
+                            <div class="value" id="batteryHours">0</div>
+                            <div class="unit">hours</div>
+                        </div>
+                        <div class="summary-item">
+                            <h4>Days</h4>
+                            <div class="value" id="batteryDays">0</div>
+                            <div class="unit">days</div>
+                        </div>
+                        <div class="summary-item">
+                            <h4>Years</h4>
+                            <div class="value" id="batteryYears">0.0</div>
+                            <div class="unit">years</div>
+                        </div>
+                    </div>
+                    <div class="battery-visual">
+                        <div class="battery-icon">
+                            <div class="battery-fill" id="batteryFill" style="width: 100%;">100%</div>
+                        </div>
+                        <div class="battery-status">
+                            <div class="status" id="batteryStatus">Excellent</div>
+                            <div class="label">Battery Life</div>
+                        </div>
+                    </div>
+
+                    <div class="status-legend">
+                        <h4>Status Categories:</h4>
+                        <div class="legend-items">
+                            <div class="legend-item">
+                                <div class="legend-indicator poor"></div>
+                                <span><strong>Poor (25% fill):</strong> < 0.5 years battery life</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-indicator fair"></div>
+                                <span><strong>Fair (50% fill):</strong> 0.5 - 1 years battery life</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-indicator good"></div>
+                                <span><strong>Good (75% fill):</strong> 1 - 2 years battery life</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-indicator excellent"></div>
+                                <span><strong>Excellent (100% fill):</strong> ≥ 2 years battery life</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="charts-section">
+                <div class="chart-container">
+                    <h3>📊 Power Consumption (%)</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h3>📊 Power Distribution (%)</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+const powerModules = {
+    'BAT': 1,
+    '1.8DC-DC-10µA': 0.5882352941176471,
+    '3.3DC-DC': 0.9649122807017544,
+    '5V': 1.5432098765432098,
+    '12V': 4.166666666666667
+};
+
+const components = [
+    { name: "Module stby", count: 1, currentActive: 0.04, activationPerDay: 1, activationDuration: 86400, powerModule: "1.8DC-DC-10µA", restoredCapacityRatio: 1 },
+    { name: "Sleep to ready", count: 1, currentActive: 1.7, activationPerDay: 1440, activationDuration: 1, powerModule: "BAT", restoredCapacityRatio: 1 },
+    { name: "Mbed wakeup", count: 1, currentActive: 1.83, activationPerDay: 720, activationDuration: 0.006, powerModule: "BAT", restoredCapacityRatio: 1 },
+    { name: "Cap Leakage", count: 1, currentActive: 0.01, activationPerDay: 1, activationDuration: 86400, powerModule: "BAT", restoredCapacityRatio: 1 },
+    { name: "TCXO", count: 1, currentActive: 4.8, activationPerDay: 1, activationDuration: 558.40, powerModule: "3.3DC-DC", restoredCapacityRatio: 1 },
+    { name: "Pressure Sensor", count: 1, currentActive: 1.5, activationPerDay: 720, activationDuration: 0.021, powerModule: "5V", restoredCapacityRatio: 1 },
+    { name: "Battery measure", count: 1, currentActive: 36, activationPerDay: 24, activationDuration: 0.000808, powerModule: "BAT", restoredCapacityRatio: 1.36 },
+    { name: "Solenoid", count: 1, currentActive: 23, activationPerDay: 4, activationDuration: 2.45, powerModule: "12V", restoredCapacityRatio: 2.2666 },
+    { name: "Temp/Humidity", count: 1, currentActive: 0.45, activationPerDay: 24, activationDuration: 0.09, powerModule: "3.3DC-DC", restoredCapacityRatio: 1 },
+    { name: "LoRa Tx", count: 1, currentActive: 26, activationPerDay: 1, activationDuration: 253.23, powerModule: "3.3DC-DC", restoredCapacityRatio: 1.2592 },
+    { name: "LoRa Rx", count: 1, currentActive: 5.46, activationPerDay: 1, activationDuration: 305.176576, powerModule: "3.3DC-DC", restoredCapacityRatio: 1 },
+    { name: "Module active", count: 1, currentActive: 3.4, activationPerDay: 1, activationDuration: 585.50, powerModule: "3.3DC-DC", restoredCapacityRatio: 1 }
+];
+
+let barChart = null, pieChart = null;
+
+function showError(msg) {
+    document.getElementById('errorMessage').textContent = msg;
+    document.getElementById('errorNotification').classList.add('show');
+    setTimeout(() => document.getElementById('errorNotification').classList.remove('show'), 5000);
+}
+
+function updateComponent(index, field, value) {
+    if (field === 'powerModule') {
+        components[index][field] = value;
+    } else {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) {
+            showError(`Invalid input for ${field}. Please enter a valid number.`);
+            return;
+        }
+        components[index][field] = numValue;
+    }
+    calculateResults();
+}
+
+function calculateResults() {
+    try {
+        let results = [], totalAvgCurrentInput = 0, errorComponents = [];
+
+        components.forEach((comp, i) => {
+            try {
+                const duration = comp.activationPerDay * comp.count * comp.activationDuration;
+                const ratio = powerModules[comp.powerModule];
+                const avgOut = (duration * comp.currentActive * comp.restoredCapacityRatio) / 86400;
+                const avgIn = avgOut * ratio;
+                
+                if (isNaN(avgIn) || !isFinite(avgIn)) throw new Error('Invalid calc');
+                
+                totalAvgCurrentInput += avgIn;
+                results.push({ name: comp.name, avgCurrentInput: avgIn, percent: 0, error: false });
+            } catch {
+                errorComponents.push(comp.name);
+                results.push({ name: comp.name, avgCurrentInput: 0, percent: 0, error: true });
+                document.getElementById(`avgCurrent${i}`).textContent = 'Error';
+                document.getElementById(`percent${i}`).textContent = 'Error';
+            }
+        });
+
+        if (errorComponents.length > 0) showError(`Errors in: ${errorComponents.join(', ')}`);
+        if (totalAvgCurrentInput <= 0) throw new Error('No valid data');
+
+        results.forEach((r, i) => {
+            if (!r.error && r.avgCurrentInput > 0) {
+                r.percent = (r.avgCurrentInput / totalAvgCurrentInput) * 100;
+                document.getElementById(`avgCurrent${i}`).textContent = r.avgCurrentInput.toFixed(6);
+                document.getElementById(`percent${i}`).textContent = r.percent.toFixed(2) + '%';
+            }
+        });
+
+        const cap = parseFloat(document.getElementById('batteryCapacity').value);
+        const hours = cap / totalAvgCurrentInput;
+        const days = hours / 24;
+        const years = days / 365;
+
+        document.getElementById('totalCurrent').textContent = totalAvgCurrentInput.toFixed(6);
+        document.getElementById('batteryHours').textContent = Math.round(hours);
+        document.getElementById('batteryDays').textContent = Math.round(days);
+        document.getElementById('batteryYears').textContent = years.toFixed(2);
+
+        const fill = document.getElementById('batteryFill');
+        const status = document.getElementById('batteryStatus');
+        let pct = 100, stat = 'Excellent', color = 'linear-gradient(90deg, #4CAF50, #8BC34A)';
+        
+        if (years < 0.5) { pct = 25; stat = 'Poor'; color = 'linear-gradient(90deg, #f44336, #ff5722)'; }
+        else if (years < 1) { pct = 50; stat = 'Fair'; color = 'linear-gradient(90deg, #ff9800, #ffc107)'; }
+        else if (years < 2) { pct = 75; stat = 'Good'; color = 'linear-gradient(90deg, #2196F3, #03DAC6)'; }
+        
+        fill.style.width = pct + '%';
+        fill.style.background = color;
+        fill.textContent = pct + '%';
+        status.textContent = stat;
+
+        updateCharts(results.filter(r => !r.error && r.percent > 0));
+    } catch (error) {
+        showError(error.message);
+        ['totalCurrent', 'batteryHours', 'batteryDays', 'batteryYears'].forEach(id => {
+            document.getElementById(id).textContent = 'Error';
+        });
+        document.getElementById('batteryStatus').textContent = 'Error';
+        document.getElementById('batteryFill').style.width = '0%';
+    }
+}
+
+function updateCharts(results) {
+    if (!results?.length) return;
+
+    const colors = ['#667eea', '#764ba2', '#4facfe', '#00f2fe', '#43e97b', '#38f9d7'];
+    
+    if (barChart) barChart.destroy();
+    barChart = new Chart(document.getElementById('barChart'), {
+        type: 'bar',
+        data: {
+            labels: results.map(r => r.name),
+            datasets: [{ data: results.map(r => r.percent), backgroundColor: colors }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+
+    if (pieChart) pieChart.destroy();
+    pieChart = new Chart(document.getElementById('pieChart'), {
+        type: 'doughnut',
+        data: {
+            labels: results.map((r, i) => `${r.name}: ${r.percent.toFixed(1)}%`),
+            datasets: [{
+                data: results.map(r => r.percent),
+                backgroundColor: colors,
+                borderWidth: 2,
+                borderColor: '#fff',
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 12,
+                        font: { size: 9 },
+                        boxWidth: 12
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const result = results[context.dataIndex];
+                            return `${result.name}: ${result.percent.toFixed(2)}% (${result.avgCurrentInput.toFixed(6)} mA)`;
+                        }
+                    }
+                }
+            },
+            cutout: '40%',
+            animation: { animateScale: true, duration: 1000 }
+        }
+    });
+}
+
+function createTable() {
+    const tbody = document.getElementById('componentsTableBody');
+    tbody.innerHTML = components.map((comp, i) => `
+        <tr>
+            <td><strong>${comp.name}</strong></td>
+            <td><input type="number" value="${comp.count}" onchange="updateComponent(${i}, 'count', this.value)"></td>
+            <td><input type="number" value="${comp.currentActive}" onchange="updateComponent(${i}, 'currentActive', this.value)" step="0.001"></td>
+            <td><input type="number" value="${comp.activationPerDay}" onchange="updateComponent(${i}, 'activationPerDay', this.value)"></td>
+            <td><input type="number" value="${comp.activationDuration}" onchange="updateComponent(${i}, 'activationDuration', this.value)" step="0.000001"></td>
+            <td><select onchange="updateComponent(${i}, 'powerModule', this.value)">
+                ${Object.keys(powerModules).map(m => `<option value="${m}" ${comp.powerModule === m ? 'selected' : ''}>${m}</option>`).join('')}
+            </select></td>
+            <td><div class="output-value" id="avgCurrent${i}">0.000</div></td>
+            <td><div class="output-value" id="percent${i}">0.0%</div></td>
+        </tr>
+    `).join('');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    createTable();
+    calculateResults();
+    document.getElementById('batteryCapacity').addEventListener('input', calculateResults);
+});
+</script>
+</body>
+</html>
